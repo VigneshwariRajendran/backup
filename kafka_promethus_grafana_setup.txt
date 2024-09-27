@@ -1,0 +1,102 @@
+b-2.democluster.66496p.c11.kafka.us-east-1.amazonaws.com:9098
+b-1.democluster.66496p.c11.kafka.us-east-1.amazonaws.com:9098
+
+kafka-topics.sh --bootstrap-server <broker-list> --list
+bin/kafka-topics.sh --bootstrap-server-b-2.democluster.66496p.c11.kafka.us-east-1.amazonaws.com:9092,b-1.democluster.66496p.c11.kafka.us-east-1.amazonaws.com:9092 --list
+
+bin/kafka-console-producer.sh --bootstrap-server-b-2.democluster.66496p.c11.kafka.us-east-1.amazonaws.com:9092,b-1.democluster.66496p.c11.kafka.us-east-1.amazonaws.com:9092 --list
+
+kafka-broker-api-versions.sh --bootstrap-server-b-2.democluster.66496p.c11.kafka.us-east-1.amazonaws.com:9092,b-1.democluster.66496p.c11.kafka.us-east-1.amazonaws.com:9092
+
+
+
+
+#inside kafka folder run this command to list topics
+===================================================
+bin/kafka-topics.sh --bootstrap-server b-2.democluster.66496p.c11.kafka.us-east-1.amazonaws.com:9092,b-1.democluster.66496p.c11.kafka.us-east-1.amazonaws.com:9092 --list
+=============================================
+
+#command to consume 
+===============================================================================
+bin/kafka-console-consumer.sh --bootstrap-server b-2.democluster.66496p.c11.kafka.us-east-1.amazonaws.com:9092,b-1.democluster.66496p.c11.kafka.us-east-1.amazonaws.com:9092 --topic kafkademo1 --from-beginning
+==============================================================================
+
+#get prometheus and extract it
+==============================================================================================================
+wget https://github.com/prometheus/prometheus/releases/download/v2.44.0/prometheus-2.44.0.linux-amd64.tar.gz
+tar -xvzf prometheus-2.44.0.linux-amd64.tar.gz
+cd prometheus-2.44.0.linux-amd64
+=======================================================================================
+
+#create prometheus.yml nd write the following:
+============================================================================
+global:
+  scrape_interval: 60s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+  - job_name: 'broker'
+    file_sd_configs:
+      - files:
+        - 'targets.json'
+==============================================================================================================================
+
+enable open monitoring in the cluster and select prometheus.
+
+#take broker details using ListNodes
+===========================================================================================================================================
+
+aws kafka list-nodes --cluster-arn <your-cluster-arn>
+aws kafka list-nodes --cluster-arn arn:aws:kafka:us-east-1:014498661566:cluster/demo-cluster/99d88dea-266d-4168-a7bc-99d380a8952a-11
+
+aws kafka describe-cluster --cluster-arn arn:aws:kafka:us-east-1:014498661566:cluster/demo-cluster/99d88dea-266d-4168-a7bc-99d380a8952a-11
+
+
+arn:aws:kafka:us-east-1:014498661566:cluster/demo-cluster/99d88dea-266d-4168-a7bc-99d380a8952a-11
+
+Note: since it was not working, created a role with MSk readOnly access and s3 readOnly access and attached to the IAM user.
+
+================================================================================================================================================
+#create a targets.json file in the same directory as prometheus.yml and write below content:
+=================================================================================================================================================
+[
+  {
+    "labels": {
+      "job": "jmx"
+    },
+    "targets": [
+      "b-2.democluster.66496p.c11.kafka.us-east-1.amazonaws.com:11001",
+      "b-1.democluster.66496p.c11.kafka.us-east-1.amazonaws.com:11001"
+    ]
+  },
+  {
+    "labels": {
+      "job": "node"
+    },
+    "targets": [
+      "b-2.democluster.66496p.c11.kafka.us-east-1.amazonaws.com:11002",
+      "b-1.democluster.66496p.c11.kafka.us-east-1.amazonaws.com:11002"
+    ]
+  }
+]
+
+
+=============================================================================================================================================
+#run the prometheus server inside the prometheus directory
+================================================================================================
+./prometheus
+
+=====================================================================================================
+#download grafana
+=======================================================================
+wget https://dl.grafana.com/enterprise/release/grafana-enterprise-11.2.0.linux-amd64.tar.gz
+tar -zxvf grafana-enterprise-11.2.0.linux-amd64.tar.gz
+===============================================================================
+#run the grafana inside the garafana directory
+===========================================================
+./bin/grafana-server web
+
+	
+	
