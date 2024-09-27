@@ -1,0 +1,52 @@
+promql:
+
+
+Active cluster:   count(count by (cluster) (kafka_server_BrokerTopicMetrics_Count))
+
+count(count by (topic) (kafka_server_brokertopicmetrics_messagesin_total))-1
+
+topic:
+count by (topic) (kafka_server_BrokerTopicMetrics_Count)
+
+
+
+count by (topic) (kafka_server_BrokerTopicMetrics_Count)
+
+
+
+{__name__=~"kafka_server_BrokerTopicMetrics_.*"}                  --------------->*****
+
+
+{__name__=~"kafka_controller_.*"}   
+
+
+
+query to count the total number of message for the topic
+================================================================================================
+
+
+sum((kafka_server_BrokerTopicMetrics_Count{name="MessagesInPerSec", topic="kafkademo1"}))
+
+
+brokers online: count(up{job="kafka-brokers-jmx"} == 1)
+
+online partition:
+count(count by (instance) (kafka_server_ReplicaManager_Value{name="OfflineReplicaCount"} == 0))
+
+offline partition:
+sum(kafka_server_ReplicaManager_Value{name="OfflineReplicaCount"})
+
+messages In per sec:
+sum by (topic) (kafka_server_BrokerTopicMetrics_Count{name="MessagesInPerSec", topic=~".+"})
+
+sort(sum(kafka_server_BrokerTopicMetrics_Count{name="MessagesInPerSec"}) by (topic))
+
+
+bytes out per sec:
+sum by (topic) (kafka_server_BrokerTopicMetrics_Count{name="BytesOutPerSec", topic=~".+"})
+
+bytes in per topic:
+sum by (topic) (kafka_server_BrokerTopicMetrics_Count{name="BytesInPerSec", topic=~".+"})
+
+produce request per broker:
+sum(kafka_server_BrokerTopicMetrics_Count{name="TotalProduceRequestsPerSec"}) by (instance)
