@@ -1,0 +1,7 @@
+## job paramters for glue job ####
+--conf	spark.extraListeners=io.openlineage.spark.agent.OpenLineageSparkListener --conf spark.openlineage.transport.type=http --conf spark.openlineage.transport.url=http://3.87.193.25:5000 --conf spark.openlineage.transport.endpoint=/api/v1/lineage --conf spark.openlineage.namespace=meta-glue-jobs --conf spark.openlineage.appName=metaGlueJob --conf spark.openlineage.facets.dataset.schema.enabled=true --conf spark.openlineage.facets.dataset.dataSource.enabled=true
+--user-jars-first	true
+
+
+##########spark-opnelineage jar##################
+* upload the jar openlineage-spark_2.12-1.19.0.jar to s3 and use the URI path in dependent Jars path
