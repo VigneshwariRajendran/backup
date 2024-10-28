@@ -90,7 +90,7 @@ lineage_intermediate_9000 = {
         "schema": {
             "_producer": "transform-input-to-intermediate",
             "_schemaURL": "http://example.com/schema_intermediate_9000",
-            "fields": [{"name": col, "type": str(df_output[col].dtype)} for col in matching_columns]
+            "fields": [{"name": col, "type": str(df_output[col].dtype)} for col in columns_matching_9000]
         }
     }
 }
