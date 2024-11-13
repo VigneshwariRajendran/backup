@@ -1,0 +1,38 @@
+####Glue job parameter#####
+--MARQUEZ_URL                 http://15.207.113.72:5000
+--S3_9000_KEY                 lineage-vr/account_rectypes/Account_9000_Staging.csv
+--S3_BUCKET                   ddsl-raw-developer
+--S3_OUTPUT_TRANSPOSED_KEY    lineage-vr/account_rectypes/Deposit_Account.csv
+#######Marquez setup######################
+ #####Remove Old Packages ##########################
+ 1.for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
+
+ #####Update the Package List
+ 2.sudo apt-get update
+ 
+ #####Install Required Packages: Install ca-certificates and curl, which are necessary for downloading Docker.#######
+ 3.sudo apt-get install ca-certificates curl
+ 
+ #### Set Up Docker GPG Key: Add the Docker GPG key to your system.###########
+ 
+ 4.sudo install -m 0755 -d /etc/apt/keyrings
+ 5.sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+ 6.sudo chmod a+r /etc/apt/keyrings/docker.asc
+ 
+ ##################Add Docker Repository####################
+ 7.echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+ 
+ ##################Update APT Again###################
+ 8.sudo apt-get update
+ 
+ ###################Install Docker################
+ 9.sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+ 
+ #################Clone the Marquez Project:###########
+ 10.git clone https://github.com/MarquezProject/marquez
+ 11.cd marquez/
+ 
+ ########################Run Marquez Containers: Use the provided script to start Marquez and seed the database.###########
+ 12-> ./docker/up.sh --seed
+ ############Alternatively, you can run it in the background:##############
+ nohup ./docker/up.sh --seed &
