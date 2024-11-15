@@ -37,6 +37,7 @@ def validate_files_by_date(s3_files, prefix, patterns, expected_count):
     """Validate file count and process files in chronological order."""
     today = datetime.now().strftime('%Y%m%d')
     grouped_files = {}
+    errors = []
 
     # Step 1: Extract dates and filter out future-dated files
     for file_key in s3_files:
@@ -61,8 +62,9 @@ def validate_files_by_date(s3_files, prefix, patterns, expected_count):
                 grouped_files[date_part].append(file_name)
                 break
         
+        # If the file did not match any pattern, log an error and skip it
         if not matched:
-            raise Exception(f"File '{file_name}' does not match any naming convention.")
+            errors.append(f"File '{file_name}' does not match any naming convention.")
     
     # Step 2: Sort and validate file count for each date group
     sorted_grouped_files = {}
@@ -78,8 +80,14 @@ def validate_files_by_date(s3_files, prefix, patterns, expected_count):
         else:
             print(f"Skipping date {date}: Expected {expected_count} files, Found {len(files)}")
     
+    # Report files with incorrect naming conventions
+    if errors:
+        print("\nFiles with incorrect naming conventions:")
+        for error in errors:
+            print(error)
+    
     # Return sorted and valid files
-    return sorted_grouped_files
+    return sorted_grouped_files, errors
 
 def lambda_handler(event, context):
     """AWS Lambda function entry point."""
@@ -99,17 +107,28 @@ def lambda_handler(event, context):
     s3_files = get_s3_files(bucket_name, prefix)
     
     # Step 3: Validate files by date and file count
-    valid_grouped_files = validate_files_by_date(s3_files, prefix, naming_conventions, file_count)
+    valid_grouped_files, errors = validate_files_by_date(s3_files, prefix, naming_conventions, file_count)
     
     # Step 4: Process only valid files in chronological order
     print("\nProcessing valid files:")
     for date, files in sorted(valid_grouped_files.items()):
         print(f"Processing files for date {date}: {files}")
     
-    return {
-        'statusCode': 200,
-        'body': json.dumps('Success: Files validated and processed in order!')
-    }
+    # Return response with details on skipped files
+    if errors:
+        return {
+            'statusCode': 206,  # Partial Content
+            'body': json.dumps({
+                'message': 'Files validated with some errors',
+                'errors': errors
+            })
+        }
+    else:
+        return {
+            'statusCode': 200,
+            'body': json.dumps('Success: Files validated and processed in order!')
+        }
+
 
 ############################################################################################333333
 import json
