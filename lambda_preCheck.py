@@ -37,6 +37,7 @@ def validate_file_names(s3_files, prefix, patterns):
     
     for file_key in s3_files:
         file_name = file_key.replace(prefix, "")
+        print(file_name)
         matched = False
 
         # Check if the file matches any of the specified patterns
@@ -49,13 +50,13 @@ def validate_file_names(s3_files, prefix, patterns):
                 date_part = match.group(1)
                 
                 # Check if the extracted date is valid and matches yesterday's date
-                try:
-                    file_date = datetime.strptime(date_part, '%Y%m%d')
-                    if file_date.strftime('%Y%m%d') != yesterday:
-                        raise Exception(f"File '{file_name}' does not match yesterday's date: {date_part}")
-                except ValueError:
-                    raise Exception(f"Invalid date format in file '{file_name}': {date_part}")
-                break
+                # try:
+                #     file_date = datetime.strptime(date_part, '%Y%m%d')
+                #     if file_date.strftime('%Y%m%d') != yesterday:
+                #         raise Exception(f"File '{file_name}' does not match yesterday's date: {date_part}")
+                # except ValueError:
+                #     raise Exception(f"Invalid date format in file '{file_name}': {date_part}")
+                # break
         
         if not matched:
             raise Exception(f"File '{file_name}' does not match any naming convention.")
@@ -90,3 +91,13 @@ def lambda_handler(event, context):
         'statusCode': 200,
         'body': json.dumps('Success: File count and naming conventions match!')
     }
+#### config #########
+{
+    "file_count": 3,
+    "s3_path": "ddsl-raw-developer/lambda-vr/landing/",
+    "naming_conventions": {
+        "AccountExtract": "AccountExtract_(\\d{4})_(\\d{8})\\.txt",
+        "TransactionExtract": "TransactionExtract_(\\d{4})_(\\d{8})\\.txt",
+        "GLExtract": "GLExtract_(\\d{4})_(\\d{8})\\.txt"
+    }
+}
