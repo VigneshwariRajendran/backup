@@ -1,0 +1,92 @@
+##############3 lineage jar code ###########################################################
+###glue version 4
+###conf spark.extraListeners=io.openlineage.spark.agent.OpenLineageSparkListener  --conf spark.openlineage.transport.type=file  --conf spark.openlineage.transport.location=s3://ddsl-raw-developer/lineage-vr/lineage.json  --conf spark.openlineage.namespace=meta-glue-jobs  --conf spark.openlineage.appName=metaGlueJob  
+
+from pyspark.sql import SparkSession
+from pyspark import SparkContext
+from awsglue.context import GlueContext
+import boto3
+import uuid
+import logging
+import time
+from pyspark.sql.functions import explode, col, lit
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Initialize Glue context and Spark session with OpenLineage JAR
+spark = SparkSession.builder \
+    .appName("GlueOpenLineageJob") \
+    .config("spark.jars", "s3://openlineage-library-vr/openlineage-spark-jar/openlineage-spark-1.2.2.jar") \
+    .config("spark.extraListeners", "io.openlineage.spark.agent.OpenLineageSparkListener") \
+    .config("spark.openlineage.namespace", "Lineage-test") \
+    .config("spark.openlineage.parentJobName", "Lineage-test") \
+    .config("spark.openlineage.parentRunId", str(uuid.uuid4())) \
+    .config("spark.openlineage.transport.type", "file") \
+    .config("spark.openlineage.transport.location", "/tmp/lineage.json") \
+    .getOrCreate()
+
+# Initialize Glue context
+glueContext = GlueContext(SparkContext.getOrCreate())
+
+# S3 paths
+s3_bucket = "ddsl-raw-developer"
+columns_json_path = "s3://ddsl-raw-developer/lineage-vr/columns.json"
+lineage_temp_path = "s3://ddsl-raw-developer/lineage-vr/temp-lineage"
+lineage_output_path = "s3://ddsl-raw-developer/lineage-vr/processed_lineage.json"
+
+# Read JSON from S3
+s3 = boto3.client("s3")
+response = s3.get_object(Bucket=s3_bucket, Key="lineage-vr/columns.json")
+json_content = response["Body"].read().decode("utf-8").strip()
+
+# Convert JSON to Spark DataFrame
+input_df = spark.read.json(spark.sparkContext.parallelize([json_content]))
+
+# Extract all rec_type_xxxx dynamically
+rec_types = input_df.columns  # Get dynamic record types
+
+# Initialize empty dataframe for merging results
+flattened_df = None
+
+for rec_type in rec_types:
+    # Explode the nested "columns" array
+    exploded_df = input_df.select(
+        lit(rec_type).alias("dataset_name"),
+        explode(col(f"`{rec_type}`.columns")).alias("column")
+    ).select(
+        col("dataset_name"),
+        col("column.name").alias("column_name"),
+        col("column.type").alias("column_type")
+    )
+
+    # Combine all extracted record types
+    flattened_df = exploded_df if flattened_df is None else flattened_df.unionByName(exploded_df, allowMissingColumns=True)
+
+# **Step 1: Write intermediate dataset for OpenLineage tracking**
+flattened_df.write.mode("overwrite").json(lineage_temp_path)
+
+# **Step 2: Read it back to ensure OpenLineage captures columns**
+processed_df = spark.read.json(lineage_temp_path)
+
+# **Step 3: Write the final output**
+processed_df.write.mode("overwrite").json(lineage_output_path)
+
+# **Wait to ensure lineage is captured**
+time.sleep(10)
+
+# **Upload lineage JSON from /tmp/lineage.json to S3**
+bucket_name = lineage_output_path.split("/")[2]
+key = "/".join(lineage_output_path.split("/")[3:])
+
+try:
+    with open("/tmp/lineage.json", "r") as lineage_file:
+        lineage_data = lineage_file.read()
+        s3.put_object(Bucket=bucket_name, Key=key, Body=lineage_data)
+        logger.info(f"Lineage data saved to s3://{bucket_name}/{key}")
+except FileNotFoundError:
+    logger.error("Lineage file not found. Ensure OpenLineage JAR is correctly capturing the lineage.")
+
+# Stop Spark session
+spark.stop()
